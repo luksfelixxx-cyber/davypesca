@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#10381A">
+<title>Davy Pesca — Vendas</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Davy Pesca">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --verde-escuro:#10381A;
+  --verde-brasao:#183F22;
+  --verde-medio:#368746;
+  --verde-claro:#3D8B4D;
+  --verde-suave:#E8F0EA;
+  --verde-suave2:#F2F7F3;
+  --branco:#ffffff;
+  --cinza:#6b7770;
+  --cinza-claro:#dfe6e1;
+  --texto:#14261a;
+  --erro:#c0392b;
+  --sombra:0 2px 12px rgba(16,56,26,.08);
+  --sombra-forte:0 6px 24px rgba(16,56,26,.16);
+  --raio:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:var(--verde-suave2);
+  color:var(--texto);
+  overscroll-behavior-y:none;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:16px}
+
+/* ---------- APP SHELL ---------- */
+#app{max-width:520px;margin:0 auto;min-height:100vh;background:var(--verde-suave2);
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));position:relative}
+
+/* Header */
+header.topo{
+  background:var(--branco);
+  padding:calc(12px + env(safe-area-inset-top)) 18px 12px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:var(--sombra);position:sticky;top:0;z-index:50;
+}
+header.topo img{height:38px;width:auto}
+header.topo .titulo{font-weight:800;font-size:17px;color:var(--verde-escuro);letter-spacing:.3px;line-height:1}
+header.topo .sub{font-size:11px;color:var(--verde-medio);font-weight:600;margin-top:2px}
+header.topo .vendedor-atual{margin-left:auto;text-align:right;font-size:11px;color:var(--cinza)}
+header.topo .vendedor-atual b{display:block;font-size:13px;color:var(--verde-escuro)}
+
+/* Conteúdo */
+main{padding:16px}
+.tela{display:none;animation:fade .25s ease}
+.tela.ativa{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+h2.secao{font-size:20px;color:var(--verde-escuro);font-weight:800;margin-bottom:4px}
+p.dica{font-size:13px;color:var(--cinza);margin-bottom:16px}
+
+/* Cards */
+.card{background:var(--branco);border-radius:var(--raio);padding:16px;box-shadow:var(--sombra);margin-bottom:14px}
+
+/* Inputs */
+label.campo{display:block;font-size:13px;font-weight:700;color:var(--verde-escuro);margin-bottom:6px}
+.input,select.input{
+  width:100%;padding:14px;border:1.5px solid var(--cinza-claro);border-radius:12px;
+  background:var(--branco);color:var(--texto);transition:border-color .15s;
+}
+.input:focus,select.input:focus{outline:none;border-color:var(--verde-medio)}
+.input::placeholder{color:#a9b4ac}
+
+/* Botões */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:15px;border-radius:12px;font-weight:800;font-size:15px;
+  background:var(--verde-medio);color:#fff;transition:transform .08s,background .15s;
+}
+.btn:active{transform:scale(.98)}
+.btn.escuro{background:var(--verde-escuro)}
+.btn.contorno{background:transparent;border:1.5px solid var(--cinza-claro);color:var(--verde-escuro)}
+.btn.perigo{background:var(--erro)}
+.btn.pequeno{padding:10px 14px;font-size:13px;width:auto}
+.btn:disabled{opacity:.5}
+
+/* ---------- AUTOCOMPLETE ---------- */
+.autocomplete-wrap{position:relative}
+.sugestoes{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;
+  border:1.5px solid var(--cinza-claro);border-radius:12px;box-shadow:var(--sombra-forte);
+  max-height:220px;overflow-y:auto;z-index:60;display:none;
+}
+.sugestoes.mostrar{display:block}
+.sugestao{padding:12px 14px;border-bottom:1px solid var(--verde-suave2);display:flex;justify-content:space-between;align-items:center}
+.sugestao:last-child{border-bottom:none}
+.sugestao:active{background:var(--verde-suave)}
+.sugestao .nome{font-weight:600;font-size:14px}
+.sugestao .preco{font-size:12px;color:var(--verde-medio);font-weight:700}
+
+/* Item linha (qtd/preco) */
+.linha2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.linha3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:end}
+
+/* Carrinho */
+.item-carrinho{
+  display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--verde-suave2);
+}
+.item-carrinho:last-child{border-bottom:none}
+.item-carrinho .ic-info{flex:1;min-width:0}
+.item-carrinho .ic-nome{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-carrinho .ic-det{font-size:12px;color:var(--cinza);margin-top:2px}
+.item-carrinho .ic-total{font-weight:800;color:var(--verde-escuro);font-size:14px;white-space:nowrap}
+.item-carrinho .ic-x{width:30px;height:30px;border-radius:8px;background:var(--verde-suave2);color:var(--erro);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+.total-caixa{display:flex;justify-content:space-between;align-items:center;padding:14px 0 4px;border-top:2px solid var(--verde-suave);margin-top:4px}
+.total-caixa .lbl{font-size:14px;color:var(--cinza);font-weight:600}
+.total-caixa .val{font-size:26px;font-weight:800;color:var(--verde-escuro)}
+
+/* Pagamentos */
+.formas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.forma-btn{
+  padding:14px 10px;border:1.5px solid var(--cinza-claro);border-radius:12px;background:#fff;
+  font-weight:700;font-size:14px;color:var(--verde-escuro);display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.forma-btn .ico{font-size:22px}
+.forma-btn.ativa{border-color:var(--verde-medio);background:var(--verde-suave);box-shadow:inset 0 0 0 1px var(--verde-medio)}
+
+.pag-linha{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pag-linha .pl-nome{flex:1;font-weight:700;font-size:14px}
+.pag-linha .input{max-width:130px}
+.pag-linha .pl-x{color:var(--erro);font-size:20px;padding:4px 8px}
+
+.troco-box{background:var(--verde-suave);border-radius:12px;padding:12px 14px;margin-top:8px;display:flex;justify-content:space-between;align-items:center}
+.troco-box .lbl{font-size:13px;color:var(--verde-escuro);font-weight:600}
+.troco-box .val{font-size:18px;font-weight:800;color:var(--verde-escuro)}
+
+.resumo-pag{font-size:13px;color:var(--cinza);text-align:center;margin:10px 0}
+.resumo-pag b{color:var(--verde-escuro)}
+
+/* ---------- RELATÓRIO DIÁRIO ---------- */
+.data-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.data-nav button{width:44px;height:44px;border-radius:12px;background:#fff;box-shadow:var(--sombra);font-size:20px;color:var(--verde-escuro);display:flex;align-items:center;justify-content:center}
+.data-nav .data-label{flex:1;text-align:center;font-weight:800;color:var(--verde-escuro);font-size:15px}
+.data-nav input[type=date]{position:absolute;opacity:0;width:0;height:0}
+
+.mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.mini{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra)}
+.mini .m-lbl{font-size:12px;color:var(--cinza);font-weight:600}
+.mini .m-val{font-size:22px;font-weight:800;color:var(--verde-escuro);margin-top:4px;line-height:1}
+
+.venda-card{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);margin-bottom:10px}
+.venda-card .vc-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.venda-card .vc-hora{font-size:12px;color:var(--cinza);font-weight:600}
+.venda-card .vc-vendedor{font-size:12px;color:var(--verde-medio);font-weight:700}
+.venda-card .vc-total{font-size:19px;font-weight:800;color:var(--verde-escuro)}
+.venda-card .vc-itens{margin-top:8px;font-size:13px;color:var(--texto)}
+.venda-card .vc-item{display:flex;justify-content:space-between;padding:3px 0}
+.venda-card .vc-item .q{color:var(--cinza)}
+.venda-card .vc-pags{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;background:var(--verde-suave);color:var(--verde-escuro)}
+.venda-card .vc-acoes{display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--verde-suave2);padding-top:10px}
+.venda-card .vc-acoes button{flex:1;padding:9px;border-radius:10px;font-size:13px;font-weight:700}
+.a-editar{background:var(--verde-suave);color:var(--verde-escuro)}
+.a-excluir{background:#fdecea;color:var(--erro)}
+
+/* ---------- DASHBOARD ---------- */
+.mes-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px}
+.mes-nav button{width:44px;height:44px;border-radius:12px;background:#fff;box-shadow:var(--sombra);font-size:20px;color:var(--verde-escuro);display:flex;align-items:center;justify-content:center}
+.mes-nav .mes-label{flex:1;text-align:center;font-weight:800;color:var(--verde-escuro);font-size:16px;text-transform:capitalize}
+
+.big-card{background:linear-gradient(135deg,var(--verde-escuro),var(--verde-medio));border-radius:18px;padding:20px;color:#fff;box-shadow:var(--sombra-forte);margin-bottom:14px}
+.big-card .bc-lbl{font-size:13px;opacity:.85;font-weight:600}
+.big-card .bc-val{font-size:34px;font-weight:800;margin-top:4px;line-height:1}
+.big-card .bc-sub{font-size:12px;opacity:.8;margin-top:8px}
+
+.dash-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.dash-mini{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra)}
+.dash-mini .dm-lbl{font-size:12px;color:var(--cinza);font-weight:600}
+.dash-mini .dm-val{font-size:20px;font-weight:800;color:var(--verde-escuro);margin-top:4px}
+
+.bloco-titulo{font-size:14px;font-weight:800;color:var(--verde-escuro);margin:6px 0 10px}
+
+.barra-item{margin-bottom:12px}
+.barra-item .bi-topo{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.barra-item .bi-nome{font-weight:700;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.barra-item .bi-val{font-weight:700;color:var(--verde-escuro)}
+.barra-track{height:9px;background:var(--verde-suave2);border-radius:20px;overflow:hidden}
+.barra-fill{height:100%;background:linear-gradient(90deg,var(--verde-medio),var(--verde-claro));border-radius:20px;transition:width .5s}
+
+.rank{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--verde-suave2)}
+.rank:last-child{border-bottom:none}
+.rank .r-pos{width:26px;height:26px;border-radius:8px;background:var(--verde-suave);color:var(--verde-escuro);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank .r-nome{flex:1;font-weight:700;font-size:14px}
+.rank .r-val{font-weight:800;color:var(--verde-escuro);font-size:14px}
+.rank .r-qtd{font-size:11px;color:var(--cinza);font-weight:600}
+
+/* ---------- NAV INFERIOR ---------- */
+nav.tabbar{
+  position:fixed;bottom:0;left:0;right:0;max-width:520px;margin:0 auto;
+  background:#fff;box-shadow:0 -2px 16px rgba(16,56,26,.1);
+  display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:60;
+}
+nav.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;color:var(--cinza);border-radius:12px}
+nav.tabbar button .tico{font-size:22px;line-height:1}
+nav.tabbar button .tlbl{font-size:11px;font-weight:700}
+nav.tabbar button.ativa{color:var(--verde-medio)}
+nav.tabbar button.ativa .tico{transform:translateY(-1px)}
+nav.tabbar button.destaque{position:relative}
+nav.tabbar button.destaque .tico{
+  background:var(--verde-medio);color:#fff;width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin-top:-24px;box-shadow:var(--sombra-forte);font-size:26px;
+}
+nav.tabbar button.destaque.ativa .tico{background:var(--verde-escuro)}
+
+/* ---------- VAZIO ---------- */
+.vazio{text-align:center;padding:40px 20px;color:var(--cinza)}
+.vazio .v-ico{font-size:46px;margin-bottom:10px;opacity:.6}
+.vazio .v-txt{font-size:14px;font-weight:600}
+.vazio .v-sub{font-size:12px;margin-top:4px}
+
+/* ---------- MODAL ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(10,25,15,.55);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.mostrar{display:flex}
+.modal{background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));animation:sobe .25s ease}
+@keyframes sobe{from{transform:translateY(100%)}to{transform:none}}
+.modal h3{font-size:18px;color:var(--verde-escuro);font-weight:800;margin-bottom:6px}
+.modal p{font-size:14px;color:var(--cinza);margin-bottom:18px;line-height:1.4}
+.modal .modal-acoes{display:flex;gap:10px}
+.modal .modal-acoes .btn{flex:1}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--verde-escuro);color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;font-weight:700;
+  box-shadow:var(--sombra-forte);z-index:200;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;
+}
+.toast.mostrar{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.erro{background:var(--erro)}
+
+/* Config lista vendedores */
+.vend-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--verde-suave2)}
+.vend-item:last-child{border-bottom:none}
+.vend-item .vi-nome{flex:1;font-weight:700;font-size:15px}
+.vend-item .vi-x{color:var(--erro);font-size:20px;padding:4px 10px}
+
+/* Config supabase aviso */
+.aviso-config{background:#fff8e6;border:1.5px solid #f0d98a;border-radius:14px;padding:16px;margin-bottom:16px;font-size:13px;color:#7a5c00;line-height:1.5}
+.aviso-config b{color:#5c4500}
+
+.chip-seletor{display:inline-flex;align-items:center;gap:6px;background:var(--verde-suave);color:var(--verde-escuro);padding:8px 14px;border-radius:20px;font-weight:700;font-size:14px;margin-bottom:14px}
+.chip-seletor .cs-troca{color:var(--verde-medio);font-size:12px;text-decoration:underline}
+
+.load{text-align:center;padding:30px;color:var(--cinza);font-size:14px}
+.spin{width:34px;height:34px;border:3px solid var(--verde-suave);border-top-color:var(--verde-medio);border-radius:50%;animation:girar .8s linear infinite;margin:0 auto 12px}
+@keyframes girar{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ============ TELA DE ENTRADA (escolher vendedor) ============ -->
+<div id="tela-entrada" style="display:none;position:fixed;inset:0;background:#fff;z-index:300;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center">
+  <img src="icon-192.png" alt="Davy Pesca" style="width:120px;height:120px;border-radius:24px;box-shadow:var(--sombra-forte);margin-bottom:24px">
+  <h1 style="font-size:22px;color:var(--verde-escuro);font-weight:800">Davy Pesca</h1>
+  <p style="font-size:13px;color:var(--verde-medio);font-weight:600;margin-bottom:28px">A Casa do Pescador!</p>
+  <div style="width:100%;max-width:320px">
+    <label class="campo" style="text-align:left">Quem está vendendo?</label>
+    <select id="sel-vendedor-entrada" class="input" style="margin-bottom:14px"></select>
+    <button class="btn" onclick="entrar()">Entrar</button>
+    <button class="btn contorno" style="margin-top:10px" onclick="irConfig()">Gerenciar vendedores</button>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" style="display:none">
+  <header class="topo">
+    <img src="icon-192.png" alt="Davy Pesca">
+    <div>
+      <div class="titulo">Davy Pesca</div>
+      <div class="sub">A Casa do Pescador!</div>
+    </div>
+    <div class="vendedor-atual">Vendedor<b id="hdr-vendedor">—</b></div>
+  </header>
+
+  <main>
+    <!-- ===== TELA VENDER ===== -->
+    <section class="tela ativa" id="tela-vender">
+      <h2 class="secao">Nova venda</h2>
+      <p class="dica">Adicione os produtos e finalize o pagamento.</p>
+
+      <div class="card">
+        <label class="campo">Produto</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="in-produto" class="input" placeholder="Digite o nome do produto" autocomplete="off" oninput="buscarProduto(this.value)" onfocus="buscarProduto(this.value)">
+          <div class="sugestoes" id="sugestoes-produto"></div>
+        </div>
+        <div class="linha3" style="margin-top:12px">
+          <div>
+            <label class="campo">Qtd</label>
+            <input type="number" id="in-qtd" class="input" value="1" min="1" inputmode="numeric" style="text-align:center">
+          </div>
+          <div>
+            <label class="campo">Preço un.</label>
+            <input type="text" id="in-preco" class="input" placeholder="0,00" inputmode="decimal">
+          </div>
+          <button class="btn escuro" style="height:48px" onclick="adicionarItem()">Add</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-carrinho" style="display:none">
+        <div id="lista-carrinho"></div>
+        <div class="total-caixa">
+          <span class="lbl">Total da venda</span>
+          <span class="val" id="carrinho-total">R$ 0,00</span>
+        </div>
+        <button class="btn" style="margin-top:14px" onclick="abrirPagamento()">Ir para pagamento →</button>
+      </div>
+
+      <div class="vazio" id="carrinho-vazio">
+        <div class="v-ico">🎣</div>
+        <div class="v-txt">Nenhum item ainda</div>
+        <div class="v-sub">Adicione o primeiro produto acima</div>
+      </div>
+    </section>
+
+    <!-- ===== TELA PAGAMENTO ===== -->
+    <section class="tela" id="tela-pagamento">
+      <h2 class="secao">Pagamento</h2>
+      <p class="dica">Toque nas formas usadas. Pode dividir entre várias.</p>
+
+      <div class="card">
+        <div class="total-caixa" style="border-top:none;padding-top:0;margin-top:0">
+          <span class="lbl">Total a receber</span>
+          <span class="val" id="pag-total">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <label class="campo" style="margin-bottom:10px">Formas de pagamento</label>
+        <div class="formas-grid">
+          <button class="forma-btn" data-forma="Pix" onclick="toggleForma('Pix')"><span class="ico">⚡</span>Pix</button>
+          <button class="forma-btn" data-forma="Dinheiro" onclick="toggleForma('Dinheiro')"><span class="ico">💵</span>Dinheiro</button>
+          <button class="forma-btn" data-forma="Crédito" onclick="toggleForma('Crédito')"><span class="ico">💳</span>Crédito</button>
+          <button class="forma-btn" data-forma="Débito" onclick="toggleForma('Débito')"><span class="ico">🏦</span>Débito</button>
+        </div>
+
+        <div id="pags-valores"></div>
+
+        <div id="dinheiro-troco" style="display:none">
+          <label class="campo" style="margin-top:10px">Valor recebido em dinheiro</label>
+          <input type="text" id="in-recebido" class="input" placeholder="0,00" inputmode="decimal" oninput="calcularTroco()">
+          <div class="troco-box">
+            <span class="lbl">Troco</span>
+            <span class="val" id="troco-val">R$ 0,00</span>
+          </div>
+        </div>
+
+        <div class="resumo-pag" id="resumo-pag"></div>
+      </div>
+
+      <button class="btn" onclick="finalizarVenda()" id="btn-finalizar">Finalizar venda ✓</button>
+      <button class="btn contorno" style="margin-top:10px" onclick="voltarVender()">← Voltar</button>
+    </section>
+
+    <!-- ===== TELA RELATÓRIO DIÁRIO ===== -->
+    <section class="tela" id="tela-diario">
+      <h2 class="secao">Vendas do dia</h2>
+      <div class="data-nav">
+        <button onclick="mudarDia(-1)">‹</button>
+        <div class="data-label" id="dia-label" onclick="document.getElementById('dia-picker').showPicker&&document.getElementById('dia-picker').showPicker()">Hoje
+          <input type="date" id="dia-picker" onchange="setDia(this.value)">
+        </div>
+        <button onclick="mudarDia(1)">›</button>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini"><div class="m-lbl">Faturamento</div><div class="m-val" id="dia-fat">R$ 0</div></div>
+        <div class="mini"><div class="m-lbl">Vendas</div><div class="m-val" id="dia-qtd">0</div></div>
+      </div>
+
+      <div id="diario-lista"></div>
+    </section>
+
+    <!-- ===== TELA DASHBOARD MENSAL ===== -->
+    <section class="tela" id="tela-dashboard">
+      <h2 class="secao">Dashboard mensal</h2>
+      <div class="mes-nav">
+        <button onclick="mudarMes(-1)">‹</button>
+        <div class="mes-label" id="mes-label">—</div>
+        <button onclick="mudarMes(1)">›</button>
+      </div>
+
+      <div class="big-card">
+        <div class="bc-lbl">Faturamento do mês</div>
+        <div class="bc-val" id="dash-fat">R$ 0</div>
+        <div class="bc-sub" id="dash-fat-sub">—</div>
+      </div>
+
+      <div class="dash-row">
+        <div class="dash-mini"><div class="dm-lbl">Nº de vendas</div><div class="dm-val" id="dash-nvendas">0</div></div>
+        <div class="dash-mini"><div class="dm-lbl">Ticket médio</div><div class="dm-val" id="dash-ticket">R$ 0</div></div>
+      </div>
+
+      <div class="card">
+        <div class="bloco-titulo">🏆 Top produtos</div>
+        <div id="dash-produtos"></div>
+      </div>
+
+      <div class="card">
+        <div class="bloco-titulo">👤 Por vendedor</div>
+        <div id="dash-vendedores"></div>
+      </div>
+
+      <div class="card">
+        <div class="bloco-titulo">💳 Por forma de pagamento</div>
+        <div id="dash-formas"></div>
+      </div>
+    </section>
+
+    <!-- ===== TELA CONFIG ===== -->
+    <section class="tela" id="tela-config">
+      <h2 class="secao">Vendedores</h2>
+      <p class="dica">Cadastre quem pode registrar vendas.</p>
+
+      <div class="aviso-config" id="aviso-supabase" style="display:none">
+        <b>⚠️ Banco de dados não configurado.</b><br>
+        O app está funcionando só neste aparelho. Para compartilhar as vendas em tempo real entre celulares, configure o Supabase (grátis). Veja as instruções que o Lucas recebeu.
+      </div>
+
+      <div class="card">
+        <label class="campo">Novo vendedor</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="in-novo-vendedor" class="input" placeholder="Nome do vendedor" style="flex:1">
+          <button class="btn escuro pequeno" onclick="addVendedor()">Add</button>
+        </div>
+        <div id="lista-vendedores" style="margin-top:8px"></div>
+      </div>
+
+      <button class="btn contorno" onclick="trocarVendedor()">Trocar de vendedor</button>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-tab="tela-diario" onclick="irTab('tela-diario')"><span class="tico">📅</span><span class="tlbl">Dia</span></button>
+    <button data-tab="tela-dashboard" onclick="irTab('tela-dashboard')"><span class="tico">📊</span><span class="tlbl">Mês</span></button>
+    <button class="destaque ativa" data-tab="tela-vender" onclick="irTab('tela-vender')"><span class="tico">＋</span><span class="tlbl">Vender</span></button>
+    <button data-tab="tela-config" onclick="irTab('tela-config')"><span class="tico">👥</span><span class="tlbl">Equipe</span></button>
+  </nav>
+</div>
+
+<!-- Modal genérico -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-titulo">Título</h3>
+    <p id="modal-texto">Texto</p>
+    <div class="modal-acoes">
+      <button class="btn contorno" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" id="modal-confirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
