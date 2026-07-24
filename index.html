@@ -481,14 +481,22 @@ nav.tabbar button.destaque.ativa .tico{background:var(--verde-escuro)}
    (Settings > API no painel do Supabase)
    Enquanto estiverem em branco, o app funciona só neste aparelho.
 ------------------------------------------------------------ */
-const SUPABASE_URL = "";      // ex: https://xxxxx.supabase.co
-const SUPABASE_ANON_KEY = ""; // ex: eyJhbGciOi...
+const SUPABASE_URL = "https://teycqcrwdpixqkivzexd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_B5Y_9u3zSU3X5Y488k2S5A_GT4bEW5R";
 
-const USANDO_NUVEM = SUPABASE_URL && SUPABASE_ANON_KEY;
+const TEM_CONFIG = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 let sb = null;
-if (USANDO_NUVEM && window.supabase) {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (TEM_CONFIG && window.supabase) {
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.error('Falha ao criar cliente Supabase:', e);
+    sb = null;
+  }
 }
+// Só usa a nuvem se o cliente foi realmente criado. Se o script do Supabase
+// não carregar (internet/CDN), o app continua funcionando localmente.
+const USANDO_NUVEM = !!sb;
 
 /* ------------------------------------------------------------
    2) ESTADO
@@ -559,7 +567,7 @@ async function carregarTudo(){
 ------------------------------------------------------------ */
 async function init(){
   if('serviceWorker' in navigator){
-    /* service worker desativado no modo arquivo único */
+    /* sw off */
   }
   carregarLocal();
   vendedorAtual = localStorage.getItem(LS.vendedorAtual)||null;
